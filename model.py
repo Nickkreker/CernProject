@@ -1,4 +1,6 @@
+import torch
 from torch import nn
+
 
 
 '''
@@ -15,13 +17,11 @@ class DoubleConvLayer(nn.Module):
 
         self.double_conv = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(alpha, inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(alpha, inplace=True)
         )
-
+#nn.BatchNorm2d(out_channels),
     def forward(self, x):
         return self.double_conv(x)
 
@@ -31,14 +31,13 @@ class Unet(nn.Module):
 
 
         self.conv1 = DoubleConvLayer(1, 64)
-        self.dconv1 = nn.ConvTranspose2d(64, 64, kernel_size=2, stride=2)
-
+        self.dconv1 = nn.MaxPool2d(2,)
 
         self.conv2 = DoubleConvLayer(64, 128)
-        self.dconv2 = nn.ConvTranspose2d(128, 128, kernel_size=2, stride=2)
+        self.dconv2 = nn.MaxPool2d(2)
 
         self.conv3 = DoubleConvLayer(128, 256)
-        self.dconv3 = nn.ConvTranspose2d(256, 256, kernel_size=2, stride=2)
+        self.dconv3 = nn.MaxPool2d(2)
 
         self.conv4 = DoubleConvLayer(256, 512)
         self.uconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
@@ -54,6 +53,12 @@ class Unet(nn.Module):
         self.conv8 = nn.Conv2d(64, 1, kernel_size=1)
 
 
+    def crop(self, x, target_shapes):
+        _, _, height, width = x.shape
+        diff_y = (height - target_shapes[0]) // 2
+        diff_x = (width - target_shapes[0]) // 2
+        return x[:, :, diff_y: (diff_y + target_shapes[0]), diff_x: (diff_x + target_shapes[1])]
+
     def forward(self, x):
         x1 = self.conv1(x)
         x2 = self.dconv1(x1)
@@ -67,14 +72,13 @@ class Unet(nn.Module):
         x4 = self.conv4(x4)
         x4 = self.uconv4(x4)
 
-        x5 = self.conv5(torch.cat([x3, x4]), dim=1)
+        x5 = self.conv5(torch.cat([self.crop(x3, x4.shape[2:]), x4], dim=1))
         x5 = self.uconv5(x5)
 
-        x6 = self.conv6(torch.cat([x2, x5]), dim=1)
+        x6 = self.conv6(torch.cat([self.crop(x2, x5.shape[2:]), x5], dim=1))
         x6 = self.uconv6(x6)
 
-        x7 = self.conv7(torch.cat([x1, x6]), dim=1)
-
+        x7 = self.conv7(torch.cat([self.crop(x1, x6.shape[2:]), x6], dim=1))
         x8 = self.conv8(x7)
 
         return x8

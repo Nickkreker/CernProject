@@ -19,7 +19,7 @@ class DoubleConvLayer(nn.Module):
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             nn.LeakyReLU(alpha, inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.LeakyReLU(alpha, inplace=True)
+            nn.LeakyReLU(alpha, inplace=True),
         )
 #nn.BatchNorm2d(out_channels),
     def forward(self, x):

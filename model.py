@@ -26,7 +26,7 @@ class DoubleConvLayer(nn.Module):
         return self.double_conv(x)
 
 class Unet(nn.Module):
-    def __init__(self, in_channels=16):
+    def __init__(self, in_channels=16, out_dim=1):
         super(Unet, self).__init__()
 
 
@@ -50,7 +50,7 @@ class Unet(nn.Module):
 
         self.conv7 = DoubleConvLayer(128, 64)
 
-        self.conv8 = nn.Conv2d(64, 1, kernel_size=1)
+        self.conv8 = nn.Conv2d(64, out_dim, kernel_size=1)
 
 
     def crop(self, x, target_shapes):
@@ -82,10 +82,6 @@ class Unet(nn.Module):
         x8 = self.conv8(x7)
 
         return x8
-
-
-
-
 '''
 class SUnet(nn.Module):
     def __init__(self):

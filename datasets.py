@@ -46,7 +46,7 @@ class CernDataset(Dataset):
         return img_t, y_t
 
 class CernDatasetFullEvo(Dataset):
-    def __init__(self, folder, evo_length=9):
+    def __init__(self, folder, evo_length=9, max_dataset_size=None):
         self.root_dir = folder
         self.evo_length = evo_length
         self.paths = []
@@ -56,6 +56,9 @@ class CernDatasetFullEvo(Dataset):
                 if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
                     os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > evo_length + 1):
                     self.paths.append(f'{idx}/{jobresult}')
+
+        if max_dataset_size is not None:
+            self.paths = self.paths[:max_dataset_size]
 
     def __len__(self):
         return len(self.paths)

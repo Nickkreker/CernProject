@@ -29,7 +29,7 @@ def visualize_dataset(dataset, title=None, count=10):
         plt.grid(False)
         plt.axis('off')
 
-def visualise_single_step_prediction(model, dataset, device=torch.device('cude:0'), count=5):
+def visualise_single_step_prediction(model, dataset, device=torch.device('cuda:0'), count=5):
     '''
     Plots actual and predicted states
     '''
@@ -57,7 +57,40 @@ def visualise_single_step_prediction(model, dataset, device=torch.device('cude:0
         fig.add_subplot(3, count, counter + 2 * count + 1)
         plt.title("actual")
         plt.imshow(torch.squeeze(y))
-    plt.savefig('../plots/unet_adam_5ep.png')
+    # plt.savefig('../plots/unet_adam_5ep.png')
+
+def visualise_full_evo(model, dataset, device=torch.device('cuda:0'), count=5):
+    model.eval()
+
+    indices = list(range(count))
+
+    sampler = SubsetSampler(indices)
+    loader = torch.utils.data.DataLoader(dataset,
+                                         sampler=sampler)
+
+    fig = plt.figure(figsize=(27,9), dpi=250)
+
+for counter, (x, y) in enumerate(loader):
+    if counter > 0:
+        break
+        
+    t = x.to(device)
+    for k in range(9):
+        prediction_gpu = model(t)
+        prediction = prediction_gpu.cpu().detach()
+        fig.add_subplot(3, 9, k + 1)
+        plt.title("initial")
+        plt.imshow(torch.squeeze(x))
+        fig.add_subplot(3, 9, k + 9 + 1)
+        plt.title("predicted")
+        plt.imshow(torch.squeeze(prediction))
+        fig.add_subplot(3, 9, k + 18 + 1)
+        plt.title("actual")
+        plt.imshow(torch.squeeze(y[:,k,:, :]))
+        t = prediction_gpu
+
+        #plt.savefig('../plots/full_evo_prediction_bad.png')
+
 
 def plot_losses(train_loss_history, val_loss_history):
     plt.plot(train_loss_history, label='train')

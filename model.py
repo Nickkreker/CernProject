@@ -26,31 +26,31 @@ class DoubleConvLayer(nn.Module):
         return self.double_conv(x)
 
 class Unet(nn.Module):
-    def __init__(self, in_channels=16, out_dim=1):
+    def __init__(self, in_channels=1, out_dim=1, hidden_size=64):
         super(Unet, self).__init__()
 
 
-        self.conv1 = DoubleConvLayer(1, 64)
+        self.conv1 = DoubleConvLayer(in_channels, hidden_size)
         self.dconv1 = nn.MaxPool2d(2,)
 
-        self.conv2 = DoubleConvLayer(64, 128)
+        self.conv2 = DoubleConvLayer(hidden_size, 2 * hidden_size)
         self.dconv2 = nn.MaxPool2d(2)
 
-        self.conv3 = DoubleConvLayer(128, 256)
+        self.conv3 = DoubleConvLayer(2 * hidden_size, 4 * hidden_size)
         self.dconv3 = nn.MaxPool2d(2)
 
-        self.conv4 = DoubleConvLayer(256, 512)
-        self.uconv4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        self.conv4 = DoubleConvLayer(4 * hidden_size, 8 * hidden_size)
+        self.uconv4 = nn.ConvTranspose2d(8 * hidden_size, 4 * hidden_size, kernel_size=2, stride=2)
 
-        self.conv5 = DoubleConvLayer(512, 256)
-        self.uconv5 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        self.conv5 = DoubleConvLayer(8 * hidden_size, 4 * hidden_size)
+        self.uconv5 = nn.ConvTranspose2d(4 * hidden_size, 2 * hidden_size, kernel_size=2, stride=2)
 
-        self.conv6 = DoubleConvLayer(256, 128)
-        self.uconv6 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        self.conv6 = DoubleConvLayer(4 * hidden_size, 2 * hidden_size)
+        self.uconv6 = nn.ConvTranspose2d(2 * hidden_size, hidden_size, kernel_size=2, stride=2)
 
-        self.conv7 = DoubleConvLayer(128, 64)
+        self.conv7 = DoubleConvLayer(2 * hidden_size, hidden_size)
 
-        self.conv8 = nn.Conv2d(64, out_dim, kernel_size=1)
+        self.conv8 = nn.Conv2d(hidden_size, out_dim, kernel_size=1)
 
 
     def crop(self, x, target_shapes):
@@ -82,6 +82,26 @@ class Unet(nn.Module):
         x8 = self.conv8(x7)
 
         return x8
+
+
+class UnetEvo(nn.Module):
+    def __init__(self, hidden_size=8):
+        super(UnetEvo, self).__init__()
+
+        self.unet1 = Unet(hidden_size=8)
+        self.unet2 = Unet(hidden_size=4, in_channels=2)
+        self.unet3 = Unet(hidden_size=4, in_channels=2)
+        self.unet4 = Unet(hidden_size=4, in_channels=2)
+
+    def forward(self, x):
+        x1 = self.unet1(x)
+        x2 = self.unet2(torch.cat([x, x1], dim=1))
+
+        x3 = self.unet3(torch.cat([x1, x2], dim=1))
+        x4 = self.unet4(torch.cat([x2, x3], dim=1))
+
+        return torch.cat([x1, x2, x3, x4], dim=1)
+
 '''
 class SUnet(nn.Module):
     def __init__(self):

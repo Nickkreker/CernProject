@@ -14,20 +14,24 @@ class SubsetSampler(Sampler):
         return len(self.indices)
 
 
-def visualize_dataset(dataset, title=None, count=10):
+def visualize_dataset(dataset, title=None, count=10, visualize_y=False):
     '''
     Visualizes initial states from dataset
     '''
     display_indices = np.random.choice(np.arange(len(dataset)), count, replace=False)
-    plt.figure(figsize=(count*3, 3))
+    plt.figure(figsize=(count * 3, (visualize_y + 1) * 3))
     if title:
         plt.suptitle("%s %s/%s" % (title, len(display_indices), len(indices)))
     for i, index in enumerate(display_indices):
         x, y = dataset[index]
-        plt.subplot(1, count, i + 1)
-        plt.imshow(x.squeeze())
-        plt.grid(False)
-        plt.axis('off')
+        if visualize_y:
+            plt.subplot(2, count, i + 1)
+            plt.imshow(x.squeeze())
+            plt.subplot(2, count, i + count + 1)
+            plt.imshow(y.squeeze())
+        else:
+            plt.subplot(1, count, i + 1)
+            plt.imshow(x.squeeze())
 
 def visualise_single_step_prediction(model, dataset, device=torch.device('cuda:0'), count=5):
     '''
@@ -70,26 +74,26 @@ def visualise_full_evo(model, dataset, device=torch.device('cuda:0'), count=5):
 
     fig = plt.figure(figsize=(27,9), dpi=250)
 
-for counter, (x, y) in enumerate(loader):
-    if counter > 0:
-        break
-        
-    t = x.to(device)
-    for k in range(9):
-        prediction_gpu = model(t)
-        prediction = prediction_gpu.cpu().detach()
-        fig.add_subplot(3, 9, k + 1)
-        plt.title("initial")
-        plt.imshow(torch.squeeze(x))
-        fig.add_subplot(3, 9, k + 9 + 1)
-        plt.title("predicted")
-        plt.imshow(torch.squeeze(prediction))
-        fig.add_subplot(3, 9, k + 18 + 1)
-        plt.title("actual")
-        plt.imshow(torch.squeeze(y[:,k,:, :]))
-        t = prediction_gpu
+    for counter, (x, y) in enumerate(loader):
+        if counter > 0:
+            break
 
-        #plt.savefig('../plots/full_evo_prediction_bad.png')
+        t = x.to(device)
+        for k in range(9):
+            prediction_gpu = model(t)
+            prediction = prediction_gpu.cpu().detach()
+            fig.add_subplot(3, 9, k + 1)
+            plt.title("initial")
+            plt.imshow(torch.squeeze(x))
+            fig.add_subplot(3, 9, k + 9 + 1)
+            plt.title("predicted")
+            plt.imshow(torch.squeeze(prediction))
+            fig.add_subplot(3, 9, k + 18 + 1)
+            plt.title("actual")
+            plt.imshow(torch.squeeze(y[:,k,:, :]))
+            t = prediction_gpu
+
+            #plt.savefig('../plots/full_evo_prediction_bad.png')
 
 
 def plot_losses(train_loss_history, val_loss_history):

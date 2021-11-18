@@ -35,7 +35,7 @@ class CernDataset(Dataset):
                 if idx > 262 * self.start and idx < 262 * (self.start + 1):
                     t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
                     img = np.hstack((img, t))
-                if idx > 262 * self.end and idx < 262 * (self.end + 1):
+                if idx > 262 * (self.end + 1) and idx < 262 * (self.end + 2):
                     t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
                     y = np.hstack((y, t))
         y_t = torch.from_numpy(y.reshape((1, 261, -1)))
@@ -79,6 +79,47 @@ class CernDatasetFullEvo(Dataset):
                     y = np.hstack((y, t))
         y_t = torch.from_numpy(y.reshape((self.evo_length, 261, 261)))
         img_t = torch.from_numpy(img.reshape((1, 261, 261)))
+        y_t = y_t[:, 3:-2, 3:-2]
+        img_t = img_t[:, 3:-2, 3:-2]
+
+        return img_t, y_t
+
+class CernDatasetMassive(Dataset):
+    def __init__(self, folder, max_dataset_size=None, min_file_size=9):
+        self.root_dir = folder
+        self.paths = []
+        self.num_time_stamps = min_file_size - 1
+
+        for idx in os.listdir(folder):
+            for jobresult in os.listdir(f'{folder}/{idx}'):
+                if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
+                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > min_file_size):
+                    for time_stamp in range(self.num_time_stamps):
+                        self.paths.append(f'{idx}/{jobresult}{time_stamp}')
+
+        if max_dataset_size is not None:
+            self.paths = self.paths[:max_dataset_size]
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, index):
+        sample_name = self.paths[index][:-1]
+        time_stamp = int(self.paths[index][-1])
+        sample_path = os.path.join(self.root_dir, sample_name)
+
+        img = np.array([], dtype=np.float32)
+        y = np.array([], dtype=np.float32)
+        with open(f'{sample_path}/printing_VISHNew/results/snapshot_Ed.dat') as f:
+            for idx, line in enumerate(f):
+                if idx > 262 * (time_stamp + 1) and idx < 262 * (time_stamp + 2):
+                    t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                    img = np.hstack((img, t))
+                if idx > 262 * (time_stamp + 2) and idx < 262 * (time_stamp + 3):
+                    t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                    y = np.hstack((y, t))
+        y_t = torch.from_numpy(y.reshape((1, 261, -1)))
+        img_t = torch.from_numpy(img.reshape((1, 261, -1)))
         y_t = y_t[:, 3:-2, 3:-2]
         img_t = img_t[:, 3:-2, 3:-2]
 

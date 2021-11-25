@@ -53,11 +53,18 @@ class CernDatasetFullEvo(Dataset):
         self.load_from_npy = load_from_npy
         self.paths = []
 
+        broken_files = {
+            'D:/CernDataset/447/jobresult_5/printing_VISHNew/results/snapshot_Ed.dat',
+            'D:/CernDataset/802/jobresult_8/printing_VISHNew/results/snapshot_Ed.dat',
+            'D:/CernDataset/985/jobresult_1/printing_VISHNew/results/snapshot_Ed.dat'
+        }
+
         for idx in os.listdir(folder):
             for jobresult in os.listdir(f'{folder}/{idx}'):
-                if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
-                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > evo_length + 1):
-                    self.paths.append(f'{idx}/{jobresult}')
+                path = f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat'
+                if (os.path.exists(path) and os.path.getsize(path) // 1048576 > evo_length + 1):
+                    if path not in broken_files:
+                        self.paths.append(f'{idx}/{jobresult}')
 
         if max_dataset_size is not None:
             self.paths = self.paths[:max_dataset_size]

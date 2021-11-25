@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 
 from torch.utils.data import Dataset
@@ -46,9 +47,10 @@ class CernDataset(Dataset):
         return img_t, y_t
 
 class CernDatasetFullEvo(Dataset):
-    def __init__(self, folder, evo_length=9, max_dataset_size=None):
+    def __init__(self, folder, evo_length=9, max_dataset_size=None, load_from_npy=False):
         self.root_dir = folder
         self.evo_length = evo_length
+        self.load_from_npy = load_from_npy
         self.paths = []
 
         for idx in os.listdir(folder):
@@ -69,20 +71,49 @@ class CernDatasetFullEvo(Dataset):
 
         img = np.array([], dtype=np.float32)
         y = np.array([], dtype=np.float32)
-        with open(f'{sample_path}/printing_VISHNew/results/snapshot_Ed.dat') as f:
-            for idx, line in enumerate(f):
-                if idx > 262 and idx < 262 * 2:
-                    t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
-                    img = np.hstack((img, t))
-                if idx > 262 * 2 and idx < 262 * (self.evo_length + 2) and (idx % 262 != 0):
-                    t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
-                    y = np.hstack((y, t))
+
+        if self.load_from_npy:
+            y = np.load(f'{sample_path}/printing_VISHNew/results/y.npy')
+            img = np.load(f'{sample_path}/printing_VISHNew/results/img.npy')
+        else:
+            with open(f'{sample_path}/printing_VISHNew/results/snapshot_Ed.dat') as f:
+                for idx, line in enumerate(f):
+                    if idx > 262 and idx < 262 * 2:
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        img = np.hstack((img, t))
+                    if idx > 262 * 2 and idx < 262 * (self.evo_length + 2) and (idx % 262 != 0):
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        y = np.hstack((y, t))
         y_t = torch.from_numpy(y.reshape((self.evo_length, 261, 261)))
         img_t = torch.from_numpy(img.reshape((1, 261, 261)))
         y_t = y_t[:, 3:-2, 3:-2]
         img_t = img_t[:, 3:-2, 3:-2]
 
         return img_t, y_t
+
+    def generate_npys(self):
+        """Generates img.npy and y.npy for each training sample for faster load."""
+        num_paths = len(self.paths)
+        for i, path in enumerate(self.paths):
+            sample_path = os.path.join(self.root_dir, path)
+
+            img = np.array([], dtype=np.float32)
+            y = np.array([], dtype=np.float32)
+
+            with open(f'{sample_path}/printing_VISHNew/results/snapshot_Ed.dat') as f:
+                for idx, line in enumerate(f):
+                    if idx > 262 and idx < 262 * 2:
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        img = np.hstack((img, t))
+                    if idx > 262 * 2 and idx < 262 * (self.evo_length + 2) and (idx % 262 != 0):
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        y = np.hstack((y, t))
+
+            np.save(f'{sample_path}/printing_VISHNew/results/y.npy',  y)
+            np.save(f'{sample_path}/printing_VISHNew/results/img.npy',  img)
+
+            print(f'{i+1}/{num_paths} generated')
+
 
 class CernDatasetMassive(Dataset):
     def __init__(self, folder, max_dataset_size=None, min_file_size=9):

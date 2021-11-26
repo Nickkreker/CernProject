@@ -96,7 +96,15 @@ def visualise_full_evo(model, dataset, device=torch.device('cuda:0'), count=5):
             #plt.savefig('../plots/full_evo_prediction_bad.png')
 
 
-def plot_losses(train_loss_history, val_loss_history):
+def plot_losses(train_loss_history, val_loss_history, path_to_losses=None, output_filepath=None):
+    if path_to_losses is not None:
+        train_loss_history = []
+        val_loss_history = []
+        with open(path_to_losses, "r") as file:
+            for line if file:
+                train_loss_history.append(float(line.split(' ')[2][:-1]))
+                val_loss_history.append(float(line.split(' ')[5]))
+
     plt.plot(train_loss_history, label='train')
     plt.plot(val_loss_history, label='test')
     plt.xlabel('epoch')
@@ -104,3 +112,6 @@ def plot_losses(train_loss_history, val_loss_history):
     plt.title('model loss')
     plt.legend(loc='upper right')
     plt.show()
+
+    if output_filepath is not None:
+        plt.savefig(output_filepath)

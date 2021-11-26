@@ -88,26 +88,21 @@ class UnetEvo(nn.Module):
     def __init__(self, hidden_size=8):
         super(UnetEvo, self).__init__()
 
-        self.unet1 = Unet(hidden_size=8)
-        self.unet2 = Unet(hidden_size=4, in_channels=2)
-        self.unet3 = Unet(hidden_size=4, in_channels=2)
-        self.unet4 = Unet(hidden_size=4, in_channels=2)
+        self.unet1 = Unet(hidden_size=32, out_dim=4)
+        self.unet2 = Unet(hidden_size=64, in_channels=5, out_dim=5)
 
     def forward(self, x):
         x1 = self.unet1(x)
         x2 = self.unet2(torch.cat([x, x1], dim=1))
 
-        x3 = self.unet3(torch.cat([x1, x2], dim=1))
-        x4 = self.unet4(torch.cat([x2, x3], dim=1))
+        return torch.cat([x1, x2], dim=1)
 
-        return torch.cat([x1, x2, x3, x4], dim=1)
 
 '''
 class SUnet(nn.Module):
     def __init__(self):
-        self(SUnet, self).__init__(channels=16)
-        self.conv1 = nn.Conv2d(1, channels, kernel_size=3)
-        self.unet1 = UnetLayer(16)
+        self(SUnet, self).__init__()
+
 
 
     def forward(self, x):

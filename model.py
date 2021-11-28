@@ -89,13 +89,32 @@ class UnetEvo(nn.Module):
         super(UnetEvo, self).__init__()
 
         self.unet1 = Unet(hidden_size=32, out_dim=4)
-        self.unet2 = Unet(hidden_size=64, in_channels=5, out_dim=5)
+        self.unet2 = Unet(hidden_size=64, in_channels=6, out_dim=5)
 
     def forward(self, x):
         x1 = self.unet1(x)
-        x2 = self.unet2(torch.cat([x, x1], dim=1))
+        t = torch.ones_like(x)
+        t *= 0.18
+        x2 = self.unet2(torch.cat([x, t, x1], dim=1))
 
         return torch.cat([x1, x2], dim=1)
+
+class UnetEvoMod(nn.Module):
+    def __init__(self, hidden_size=8):
+        super(UnetEvoMod, self).__init__()
+
+        self.unet1 = Unet(hidden_size=32, out_dim=4)
+        self.unet2 = Unet(hidden_size=64, in_channels=6, out_dim=4)
+        self.unet3 = Unet(hidden_size=32, in_channels=9, out_dim=1)
+
+    def forward(self, x):
+        x1 = self.unet1(x)
+        t = torch.ones_like(x)
+        t *= 0.18
+        x2 = self.unet2(torch.cat([x, t, x1], dim=1))
+        x3 = self.unet3(torch.cat([x, x1, x2], dim=1))
+
+        return torch.cat([x1, x2, x3], dim=1)
 
 
 '''

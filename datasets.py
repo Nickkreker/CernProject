@@ -162,3 +162,110 @@ class CernDatasetMassive(Dataset):
         img_t = img_t[:, 3:-2, 3:-2]
 
         return img_t, y_t
+
+
+class CernDatasetVelocities(Dataset):
+    def __init__(self, folder, max_dataset_size=None, min_file_size=9):
+        self.root_dir = folder
+        self.paths = []
+        self.num_time_stamps = min_file_size - 1
+
+        for idx in os.listdir(folder):
+            for jobresult in os.listdir(f'{folder}/{idx}'):
+                if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
+                    os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') and
+                    os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') and
+                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > min_file_size + 1 and
+                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') // 1048576 > min_file_size + 1 and
+                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') // 1048576 > min_file_size + 1):
+                    for time_stamp in range(self.num_time_stamps + 1):
+                        self.paths.append(f'{idx}/{jobresult}{time_stamp}')
+
+        if max_dataset_size is not None:
+            self.paths = self.paths[:max_dataset_size]
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, index):
+        sample_name = self.paths[index][:-1]
+        time_stamp = int(self.paths[index][-1])
+        sample_path = os.path.join(self.root_dir, sample_name)
+
+        ed_init = np.array([], dtype=np.float32)
+        ed_final = np.array([], dtype=np.float32)
+        vx_init = np.array([], dtype=np.float32)
+        vx_final = np.array([], dtype=np.float32)
+        vy_init = np.array([], dtype=np.float32)
+        vy_final = np.array([], dtype=np.float32)
+
+        ed_full = np.load(f'{sample_path}/printing_VISHNew/results/y.npy')
+        ed_full = np.reshape(ed_full, (-1, 261, 261))
+        ed_final = ed_full[time_stamp]
+
+        vx_full = np.load(f'{sample_path}/printing_VISHNew/results/vx.npy')
+        vy_full = np.load(f'{sample_path}/printing_VISHNew/results/vy.npy')
+        vx_full = np.reshape(vx_full, (-1, 261, 261))
+        vy_full = np.reshape(vy_full, (-1, 261, 261))
+
+        if time_stamp == 0:
+            ed_init = np.load(f'{sample_path}/printing_VISHNew/results/img.npy')
+            ed_init = np.reshape(ed_init, (261, 261))
+            vx_init = np.zeros_like(ed_init)
+            vy_init = np.zeros_like(ed_init)
+        else:
+            ed_init = ed_full[time_stamp - 1]
+            vx_init = vx_full[time_stamp - 1]
+            vy_init = vy_full[time_stamp - 1]
+
+        vx_final = vx_full[time_stamp]
+        vy_final = vy_full[time_stamp]
+
+        x_t = torch.from_numpy(np.array((ed_init, vx_init, vy_init)))
+        y_t = torch.from_numpy(np.array((ed_final, vx_final, vy_final)))
+
+        x_t = x_t[:, 3:-2, 3:-2]
+        y_t = y_t[:, 3:-2, 3:-2]
+
+        return x_t, y_t
+
+    def generate_npys(self):
+        """Generates vx.npy and vy.npy for each training sample for faster load."""
+        num_paths = len(self.paths) // self.num_time_stamps
+        for i, path in enumerate(self.paths):
+            if i % (self.num_time_stamps) != 0:
+                continue
+            path = path[:-1]
+            sample_path = os.path.join(self.root_dir, path)
+            print(path)
+
+            vx = np.array([], dtype=np.float32)
+            vy = np.array([], dtype=np.float32)
+
+            with open(f'{sample_path}/printing_VISHNew/results/snapshot_Vx.dat') as f:
+                for idx, line in enumerate(f):
+                    if idx > 262 * 2 and idx < 262 * (self.num_time_stamps + 3) and (idx % 262 != 0):
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        vx = np.hstack((vx, t))
+
+            # Checking whether the file is broken
+            try:
+                np.reshape(vx, (-1, 261, 261))
+            except:
+                print(f'{sample_path}/printing_VISHNew/results/snapshot_Vx.dat')
+
+            with open(f'{sample_path}/printing_VISHNew/results/snapshot_Vy.dat') as f:
+                for idx, line in enumerate(f):
+                    if idx > 262 * 2 and idx < 262 * (self.num_time_stamps + 3) and (idx % 262 != 0):
+                        t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
+                        vy = np.hstack((vy, t))
+
+            try:
+                np.reshape(vy, (-1, 261, 261))
+            except:
+                print(f'{sample_path}/printing_VISHNew/results/snapshot_Vy.dat')
+
+            np.save(f'{sample_path}/printing_VISHNew/results/vx.npy',  vx)
+            np.save(f'{sample_path}/printing_VISHNew/results/vy.npy',  vy)
+
+            print(f'{i // self.num_time_stamps + 1}/{num_paths} generated')

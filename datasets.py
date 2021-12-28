@@ -165,21 +165,34 @@ class CernDatasetMassive(Dataset):
 
 
 class CernDatasetVelocities(Dataset):
-    def __init__(self, folder, max_dataset_size=None, min_file_size=9):
+    def __init__(self, folder, max_dataset_size=None, min_file_size=9, flatten=False, paths_from_npys=False):
         self.root_dir = folder
         self.paths = []
         self.num_time_stamps = min_file_size - 1
+        self.flatten = flatten
 
-        for idx in os.listdir(folder):
-            for jobresult in os.listdir(f'{folder}/{idx}'):
-                if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
-                    os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') and
-                    os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') and
-                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > min_file_size + 1 and
-                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') // 1048576 > min_file_size + 1 and
-                    os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') // 1048576 > min_file_size + 1):
-                    for time_stamp in range(self.num_time_stamps + 1):
-                        self.paths.append(f'{idx}/{jobresult}{time_stamp}')
+        if paths_from_npys:
+            for idx in os.listdir(folder):
+                for jobresult in os.listdir(f'{folder}/{idx}'):
+                    if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/vx.npy') and
+                        os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/vy.npy') and
+                        os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/y.npy') and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/vx.npy') == 2452484 and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/vy.npy') == 2452484 and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/y.npy') == 2452484):
+                        for time_stamp in range(self.num_time_stamps + 1):
+                            self.paths.append(f'{idx}/{jobresult}{time_stamp}')
+        else:
+            for idx in os.listdir(folder):
+                for jobresult in os.listdir(f'{folder}/{idx}'):
+                    if (os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') and
+                        os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') and
+                        os.path.exists(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Ed.dat') // 1048576 > min_file_size + 1 and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vx.dat') // 1048576 > min_file_size + 1 and
+                        os.path.getsize(f'{folder}/{idx}/{jobresult}/printing_VISHNew/results/snapshot_Vy.dat') // 1048576 > min_file_size + 1):
+                        for time_stamp in range(self.num_time_stamps + 1):
+                            self.paths.append(f'{idx}/{jobresult}{time_stamp}')
 
         if max_dataset_size is not None:
             self.paths = self.paths[:max_dataset_size]
@@ -227,13 +240,17 @@ class CernDatasetVelocities(Dataset):
         x_t = x_t[:, 3:-2, 3:-2]
         y_t = y_t[:, 3:-2, 3:-2]
 
+        if self.flatten:
+            x_t = torch.unsqueeze(torch.reshape(x_t, (-1, 256)), 0)
+            y_t = torch.unsqueeze(torch.reshape(y_t, (-1, 256)), 0)
+
         return x_t, y_t
 
     def generate_npys(self):
         """Generates vx.npy and vy.npy for each training sample for faster load."""
         num_paths = len(self.paths) // self.num_time_stamps
         for i, path in enumerate(self.paths):
-            if i % (self.num_time_stamps) != 0:
+            if i % (self.num_time_stamps + 1) != 0:
                 continue
             path = path[:-1]
             sample_path = os.path.join(self.root_dir, path)

@@ -47,10 +47,11 @@ class CernDataset(Dataset):
         return img_t, y_t
 
 class CernDatasetFullEvo(Dataset):
-    def __init__(self, folder, evo_length=9, max_dataset_size=None, load_from_npy=False):
+    def __init__(self, folder, evo_length=9, max_dataset_size=None, load_from_npy=False, load_velocities=False):
         self.root_dir = folder
         self.evo_length = evo_length
         self.load_from_npy = load_from_npy
+        self.load_velocities = load_velocities
         self.paths = []
 
         broken_files = {
@@ -65,6 +66,17 @@ class CernDatasetFullEvo(Dataset):
                 if (os.path.exists(path) and os.path.getsize(path) // 1048576 > evo_length + 1):
                     if path not in broken_files:
                         self.paths.append(f'{idx}/{jobresult}')
+
+        if load_velocities:
+            paths_t = []
+            for path in self.paths:
+                path_t = f'{folder}/{path}/printing_VISHNew/results'
+                if (os.path.exists(f'{path_t}/vx.npy') and
+                    os.path.exists(f'{path_t}/vy.npy') and
+                    os.path.getsize(f'{path_t}/vx.npy') == 2452484 and 
+                    os.path.getsize(f'{path_t}/vy.npy') == 2452484):
+                    paths_t.append(path)
+            self.paths = paths_t
 
         if max_dataset_size is not None:
             self.paths = self.paths[:max_dataset_size]
@@ -91,7 +103,15 @@ class CernDatasetFullEvo(Dataset):
                     if idx > 262 * 2 and idx < 262 * (self.evo_length + 2) and (idx % 262 != 0):
                         t = np.fromstring(" ".join(line.split()), sep = ' ', dtype=np.float32)
                         y = np.hstack((y, t))
-        y_t = torch.from_numpy(y.reshape((self.evo_length, 261, 261)))
+
+        if self.load_velocities:
+            vxs = np.load(f'{sample_path}/printing_VISHNew/results/vx.npy')
+            vys = np.load(f'{sample_path}/printing_VISHNew/results/vy.npy')
+            y = np.concatenate((y, vxs))
+            y = np.concatenate((y, vys))
+
+
+        y_t = torch.from_numpy(y.reshape((-1, 261, 261)))
         img_t = torch.from_numpy(img.reshape((1, 261, 261)))
         y_t = y_t[:, 3:-2, 3:-2]
         img_t = img_t[:, 3:-2, 3:-2]

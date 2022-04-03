@@ -211,7 +211,7 @@ class CernDatasetOneStepVelocities(Dataset):
 
         ed_full = np.load(f'{sample_path}/printing_VISHNew/results/y.npy')
         ed_full = np.reshape(ed_full, (-1, 261, 261))
-        ed_final = ed_full[self.end_moment]
+        ed_final = ed_full[self.end_moment-1]
 
         vx_full = np.load(f'{sample_path}/printing_VISHNew/results/vx.npy')
         vy_full = np.load(f'{sample_path}/printing_VISHNew/results/vy.npy')
@@ -224,12 +224,12 @@ class CernDatasetOneStepVelocities(Dataset):
             vx_init = np.zeros_like(ed_init)
             vy_init = np.zeros_like(ed_init)
         else:
-            ed_init = ed_full[self.start_moment]
-            vx_init = vx_full[self.start_moment]
-            vy_init = vy_full[self.start_moment]
+            ed_init = ed_full[self.start_moment-1]
+            vx_init = vx_full[self.start_moment-1]
+            vy_init = vy_full[self.start_moment-1]
 
-        vx_final = vx_full[self.end_moment]
-        vy_final = vy_full[self.end_moment]
+        vx_final = vx_full[self.end_moment-1]
+        vy_final = vy_full[self.end_moment-1]
 
         # Normalization of velocities (delete after test)
         # vx_init -= np.min(vx_init)

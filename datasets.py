@@ -71,11 +71,12 @@ class CernDataset(Dataset):
         return img_t, y_t
 
 class CernDatasetFullEvo(Dataset):
-    def __init__(self, folder, evo_length=9, max_dataset_size=None, load_from_npy=False, load_velocities=False):
+    def __init__(self, folder, evo_length=9, max_dataset_size=None, load_from_npy=False, load_velocities=False, modified_velocities=True):
         self.root_dir = folder
         self.evo_length = evo_length
         self.load_from_npy = load_from_npy
         self.load_velocities = load_velocities
+        self.modified_velocities = modified_velocities
         self.paths = []
 
         broken_files = {
@@ -134,9 +135,12 @@ class CernDatasetFullEvo(Dataset):
             y = np.concatenate((y, vxs))
             y = np.concatenate((y, vys))
 
-
         y_t = torch.from_numpy(y.reshape((-1, 261, 261)))
         img_t = torch.from_numpy(img.reshape((1, 261, 261)))
+
+        if self.modified_velocities:
+            y_t[9:18] *= y_t[:9]
+            y_t[18:27] *= y_t[:9]
         y_t = y_t[:, 3:-2, 3:-2]
         img_t = img_t[:, 3:-2, 3:-2]
 
@@ -167,13 +171,15 @@ class CernDatasetFullEvo(Dataset):
 
 
 class CernDatasetOneStepVelocities(Dataset):
-    def __init__(self, folder, start_moment=0, end_moment=1, flatten=False, predict_type=0, modified_velocities=False, max_dataset_size=None):
+    def __init__(self, folder, start_moment=0, end_moment=1, flatten=False, predict_type=0, modified_velocities=False, max_dataset_size=None,
+                 use_init_velocities=False):
         self.root_dir = folder
         self.flatten = flatten
         self.start_moment = start_moment
         self.end_moment = end_moment
         self.predict_type = predict_type
         self.modified_velocities = modified_velocities
+        self.use_init_velocities = use_init_velocities
         self.paths = []
 
         for idx in os.listdir(folder):
@@ -225,6 +231,10 @@ class CernDatasetOneStepVelocities(Dataset):
         vx_final = vx_full[self.end_moment]
         vy_final = vy_full[self.end_moment]
 
+        # Normalization of velocities (delete after test)
+        # vx_init -= np.min(vx_init)
+        # vy_init -= np.min(vy_init)
+
         # V_x = V_x * Ed, V_y = V_y * Ed
         if self.modified_velocities:
             vx_init = vx_init * ed_init
@@ -244,6 +254,9 @@ class CernDatasetOneStepVelocities(Dataset):
             y_t = y_t[1]
         elif self.predict_type == 2:
             y_t = y_t[2]
+
+        if not self.use_init_velocities:
+            x_t = torch.unsqueeze(x_t[0], 0)
 
         if self.flatten:
             x_t = torch.unsqueeze(torch.reshape(x_t, (-1, 256)), 0)

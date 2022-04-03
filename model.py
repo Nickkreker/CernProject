@@ -85,21 +85,136 @@ class Unet(nn.Module):
 
         return x8
 
+class DeepUnet(nn.Module):
+    def __init__(self, in_channels=1, out_dim=1, hidden_size=64):
+        super(DeepUnet, self).__init__()
+
+        self.conv1 = DoubleConvLayer(in_channels, hidden_size)
+        self.dconv1 = nn.MaxPool2d(2,)
+
+        self.conv2 = DoubleConvLayer(hidden_size, 2 * hidden_size)
+        self.dconv2 = nn.MaxPool2d(2)
+
+        self.conv3 = DoubleConvLayer(2 * hidden_size, 4 * hidden_size)
+        self.dconv3 = nn.MaxPool2d(2)
+
+        self.conv4 = DoubleConvLayer(4 * hidden_size, 8 * hidden_size)
+        self.dconv4 = nn.MaxPool2d(2)
+
+        self.conv5 = DoubleConvLayer(8 * hidden_size, 16 * hidden_size)
+        self.uconv5 = nn.ConvTranspose2d(16 * hidden_size, 8 * hidden_size, kernel_size=2, stride=2)
+
+        self.conv6 = DoubleConvLayer(16 * hidden_size, 8 * hidden_size)
+        self.uconv6 = nn.ConvTranspose2d(8 * hidden_size, 4 * hidden_size, kernel_size=2, stride=2)
+
+        self.conv7 = DoubleConvLayer(8 * hidden_size, 4 * hidden_size)
+        self.uconv7 = nn.ConvTranspose2d(4 * hidden_size, 2 * hidden_size, kernel_size=2, stride=2)
+
+        self.conv8 = DoubleConvLayer(4 * hidden_size, 2 * hidden_size)
+        self.uconv8 = nn.ConvTranspose2d(2 * hidden_size, hidden_size, kernel_size=2, stride=2)
+
+        self.conv9 = DoubleConvLayer(2 * hidden_size, hidden_size)
+        self.conv10 = nn.Conv2d(hidden_size, out_dim, kernel_size=1)
+
+    def forward(self, x):
+        x1 = self.conv1(x)
+        x2 = self.dconv1(x1)
+
+        x2 = self.conv2(x2)
+        x3 = self.dconv2(x2)
+
+        x3 = self.conv3(x3)
+        x4 = self.dconv3(x3)
+
+        x4 = self.conv4(x4)
+        x5 = self.dconv4(x4)
+
+        x5 = self.conv5(x5)
+        x5 = self.uconv5(x5)
+
+        x6 = self.conv6(torch.cat([x4, x5], dim=1))
+        x6 = self.uconv6(x6)
+
+        x7 = self.conv7(torch.cat([x3, x6], dim=1))
+        x7 = self.uconv7(x7)
+
+        x8 = self.conv8(torch.cat([x2, x7], dim=1))
+        x8 = self.uconv8(x8)
+
+        x9 = self.conv9(torch.cat([x1, x8], dim=1))
+        x9 = self.conv10(x9)
+
+        return x9
+
+class CroppedUnet(nn.Module):
+    def __init__(self, in_channels=1, hidden_size=64):
+        super(CroppedUnet, self).__init__()
+
+        self.conv1 = DoubleConvLayer(in_channels, hidden_size)
+        self.dconv1 = nn.MaxPool2d(2,)
+
+        self.conv2 = DoubleConvLayer(hidden_size, 2 * hidden_size)
+        self.dconv2 = nn.MaxPool2d(2)
+
+        self.conv3 = DoubleConvLayer(2 * hidden_size, 4 * hidden_size)
+        self.dconv3 = nn.MaxPool2d(2)
+
+        self.conv4 = DoubleConvLayer(4 * hidden_size, 8 * hidden_size)
+        self.uconv4 = nn.ConvTranspose2d(8 * hidden_size, 4 * hidden_size, kernel_size=2, stride=2)
+
+        self.conv5 = DoubleConvLayer(8 * hidden_size, 4 * hidden_size)
+        self.uconv5 = nn.ConvTranspose2d(4 * hidden_size, 2 * hidden_size, kernel_size=2, stride=2)
+
+        self.conv6 = DoubleConvLayer(4 * hidden_size, 2 * hidden_size)
+        self.uconv6 = nn.ConvTranspose2d(2 * hidden_size, hidden_size, kernel_size=2, stride=2)
+
+        self.conv7 = DoubleConvLayer(2 * hidden_size, hidden_size)
+
+    def forward(self, x):
+        x1 = self.conv1(x)
+        x2 = self.dconv1(x1)
+
+        x2 = self.conv2(x2)
+        x3 = self.dconv2(x2)
+
+        x3 = self.conv3(x3)
+        x4 = self.dconv3(x3)
+
+        x4 = self.conv4(x4)
+        x4 = self.uconv4(x4)
+
+        x5 = self.conv5(torch.cat([x3, x4], dim=1))
+        x5 = self.uconv5(x5)
+
+        x6 = self.conv6(torch.cat([x2, x5], dim=1))
+        x6 = self.uconv6(x6)
+
+        x7 = self.conv7(torch.cat([x1, x6], dim=1))
+
+        return x7
 
 class UnetEvo(nn.Module):
     def __init__(self, hidden_size=8):
         super(UnetEvo, self).__init__()
 
-        self.unet1 = Unet(hidden_size=32, out_dim=4)
-        self.unet2 = Unet(hidden_size=64, in_channels=6, out_dim=5)
+        #self.unet1 = Unet(hidden_size=32, out_dim=4)
+        #self.unet2 = Unet(hidden_size=64, in_channels=6, out_dim=5)
+
+        self.unet1 = CroppedUnet(hidden_size=32, in_channels=2)
+        self.unet2 = Unet(hidden_size=64, in_channels=32, out_dim=3)
 
     def forward(self, x):
-        x1 = self.unet1(x)
+        #x1 = self.unet1(x)
+        #t = torch.ones_like(x)
+        #t *= 0.18
+        #x2 = self.unet2(torch.cat([x, t, x1], dim=1))
         t = torch.ones_like(x)
-        t *= 0.18
-        x2 = self.unet2(torch.cat([x, t, x1], dim=1))
+        t *= 0.01
 
-        return torch.cat([x1, x2], dim=1)
+        x1 = self.unet1(torch.cat([x, t], dim=1))
+        x1 = self.unet2(x1)
+
+        return x1
 
 class UnetEvoMod(nn.Module):
     def __init__(self, hidden_size=8):
